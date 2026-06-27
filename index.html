@@ -1,0 +1,898 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.bunny.net; font-src https://fonts.bunny.net; connect-src https://integration-store.polarity.io https://integration-store-v2.polarity.io; img-src 'self';">
+<title>Polarity Integration Catalog</title>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d0d0f;
+  --surface: #18181c;
+  --surface2: #22222a;
+  --border: #2e2e38;
+  --accent: #00c7b1;
+  --accent2: #7f6bf7;
+  --updated: #f0b429;
+  --new: #34c770;
+  --text: #e8e8f0;
+  --text-dim: #8888a0;
+  --danger: #c0392b;
+  --radius: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+body { background:var(--bg); color:var(--text); font-family:'DM Sans',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:14px; min-height:100vh; }
+
+/* Loading overlay */
+.loading-overlay { position:fixed; inset:0; background:var(--bg); z-index:2000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; transition:opacity .3s; }
+.loading-overlay.hidden { opacity:0; pointer-events:none; }
+.spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-msg { color:var(--text-dim); font-size:14px; }
+.loading-progress { color:var(--text-dim); font-size:12px; margin-top:4px; }
+
+/* Error state */
+.error-banner { background:#2a0a0a; border:1px solid #8b2020; border-radius:var(--radius); padding:12px 16px; margin:16px 32px; font-size:13px; color:#f08080; display:none; }
+.error-banner.visible { display:block; }
+
+/* Header */
+.header { background:var(--surface); border-bottom:1px solid var(--border); padding:16px 32px; display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:100; flex-wrap:wrap; }
+.header h1 { font-size:20px; font-weight:700; color:var(--accent); white-space:nowrap; flex-shrink:0; letter-spacing:-0.01em; }
+.header-right { display:flex; align-items:center; gap:12px; flex:1; flex-wrap:wrap; }
+.search-box { flex:1; min-width:200px; max-width:420px; padding:8px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:14px; font-family:inherit; outline:none; transition:border-color .15s; }
+.search-box:focus { border-color:var(--accent); }
+.search-box::placeholder { color:var(--text-dim); }
+
+/* Tabs */
+.tabs { display:flex; background:var(--surface); border-bottom:1px solid var(--border); padding:0 32px; }
+.tab-btn { padding:11px 28px; background:none; border:none; border-bottom:3px solid transparent; color:var(--text-dim); font-size:14px; font-weight:600; font-family:inherit; cursor:pointer; transition:color .15s,border-color .15s; white-space:nowrap; }
+.tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+.tab-btn:hover:not(.active) { color:var(--text); }
+.tab-pill { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:10px; background:var(--surface2); color:var(--text-dim); font-size:11px; font-weight:700; vertical-align:middle; }
+.tab-pill.updated { background:#3a2e10; color:var(--updated); }
+.tab-pill.new { background:#0d2e1a; color:var(--new); }
+
+/* Filter bar */
+.filter-bar { padding:10px 32px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:var(--bg); border-bottom:1px solid var(--border); }
+.clear-filters { padding:6px 12px; background:none; border:1px solid var(--border); border-radius:var(--radius); color:var(--text-dim); font-size:12px; font-family:inherit; cursor:pointer; display:none; white-space:nowrap; }
+.clear-filters.visible { display:inline-flex; align-items:center; gap:4px; }
+.clear-filters:hover { color:var(--danger); border-color:var(--danger); }
+
+/* Status toggles */
+.updated-toggle { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-dim); font-size:12px; font-family:inherit; cursor:pointer; transition:all .15s; user-select:none; }
+.updated-toggle.active { background:#3a2e10; border-color:var(--updated); color:var(--updated); font-weight:600; }
+.updated-toggle:hover:not(.active) { border-color:var(--updated); color:var(--text); }
+.new-toggle.active { background:#0d2e1a !important; border-color:var(--new) !important; color:var(--new) !important; }
+.new-toggle:hover:not(.active) { border-color:var(--new) !important; }
+.ondemand-toggle.active { background:#1a1a2e !important; border-color:var(--accent2) !important; color:var(--accent2) !important; }
+.ondemand-toggle:hover:not(.active) { border-color:var(--accent2) !important; }
+
+/* Multiselect */
+.multiselect { position:relative; display:inline-block; min-width:160px; }
+.ms-trigger { display:flex; justify-content:space-between; align-items:center; padding:6px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer; font-size:13px; font-family:inherit; color:var(--text-dim); user-select:none; transition:border-color .15s; gap:8px; white-space:nowrap; }
+.ms-trigger.has-selection { border-color:var(--accent); color:var(--text); }
+.ms-arrow { font-size:10px; flex-shrink:0; transition:transform .15s; }
+.multiselect.open .ms-arrow { transform:rotate(180deg); }
+.ms-dropdown { display:none; position:absolute; top:calc(100% + 4px); left:0; min-width:100%; max-height:260px; overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); z-index:500; }
+.multiselect.open .ms-dropdown { display:block; }
+.ms-option { padding:8px 14px; cursor:pointer; font-size:13px; color:var(--text-dim); transition:background .1s,color .1s; display:flex; align-items:center; gap:8px; }
+.ms-option::before { content:""; width:14px; height:14px; border:1px solid var(--border); border-radius:3px; flex-shrink:0; transition:all .1s; }
+.ms-option:hover { background:var(--surface2); color:var(--text); }
+.ms-option.selected { color:var(--accent); }
+.ms-option.selected::before { background:var(--accent); border-color:var(--accent); content:"✓"; display:flex; align-items:center; justify-content:center; font-size:10px; color:#000; font-weight:700; }
+
+/* Result count */
+.result-count-bar { padding:6px 32px; color:var(--text-dim); font-size:13px; }
+
+/* Grid */
+.grid-container { padding:16px 32px 24px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+
+/* Card */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; cursor:pointer; transition:border-color .15s,transform .1s,box-shadow .15s; display:flex; flex-direction:column; gap:10px; position:relative; }
+.card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:var(--shadow); }
+.card.hidden { display:none !important; }
+.card.recently-updated { border-left:3px solid var(--updated); }
+.card.is-new { border-left:3px solid var(--new); }
+.card-header { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.card-name { font-weight:600; font-size:15px; color:var(--text); letter-spacing:-0.01em; }
+.card-header-right { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.badge-updated { font-size:10px; font-weight:700; padding:2px 6px; background:#3a2e10; color:var(--updated); border-radius:4px; white-space:nowrap; letter-spacing:.03em; }
+.badge-new { font-size:10px; font-weight:700; padding:2px 6px; background:#0d2e1a; color:var(--new); border-radius:4px; white-space:nowrap; letter-spacing:.03em; }
+.card-desc { font-size:13px; color:var(--text-dim); line-height:1.5; flex:1; }
+.card-footer { display:flex; justify-content:space-between; align-items:flex-end; gap:8px; flex-wrap:wrap; }
+.cfg-count { font-size:11px; color:var(--text-dim); white-space:nowrap; margin-left:auto; }
+
+/* Badges */
+.badges { display:flex; flex-wrap:wrap; gap:4px; }
+.badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; color:#fff; white-space:nowrap; }
+.badge-none { background:#333 !important; color:var(--text-dim) !important; }
+.badge-custom { background:#444 !important; }
+.badges.large .badge { padding:4px 12px; font-size:13px; }
+
+/* Empty state */
+.empty-state { text-align:center; padding:80px 32px; color:var(--text-dim); display:none; }
+.empty-state.visible { display:block; }
+.empty-icon { font-size:48px; margin-bottom:16px; }
+.empty-state h3 { margin-bottom:8px; color:var(--text); }
+
+/* Modal */
+.modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+.modal-backdrop.open { display:flex; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; width:100%; max-width:720px; padding:32px; position:relative; animation:slideIn .18s ease; margin:auto; }
+@keyframes slideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+.modal-close { position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text-dim); font-size:22px; cursor:pointer; padding:4px 8px; border-radius:4px; }
+.modal-close:hover { color:var(--text); background:var(--surface2); }
+.modal-header h2 { font-size:24px; font-weight:800; letter-spacing:-0.02em; color:var(--text); margin-bottom:6px; padding-bottom:10px; border-bottom:2px solid var(--accent); }
+.modal-meta { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+.meta-tag { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:2px 10px; font-size:12px; color:var(--text-dim); }
+.meta-updated { background:#3a2e10; border-color:var(--updated); color:var(--updated); font-weight:600; }
+.meta-new { background:#0d2e1a; border-color:var(--new); color:var(--new); font-weight:600; }
+.meta-ondemand { background:#1a1a2e; border-color:#7f6bf7; color:#7f6bf7; font-weight:600; }
+.meta-uc { border-color:#4f86c6; color:#4f86c6; }
+.meta-cat { border-color:var(--accent2); color:var(--accent2); }
+.meta-date { color:var(--text-dim); }
+.github-link { font-size:12px; color:var(--accent); text-decoration:none; }
+.github-link:hover { text-decoration:underline; }
+.modal-overview { color:var(--text-dim); line-height:1.6; margin-bottom:20px; font-size:14px; }
+.modal-entities, .modal-configs, .modal-custom { margin-bottom:24px; }
+.section-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+.config-item { margin-bottom:16px; padding:14px 16px; background:var(--surface2); border:1px solid var(--border); border-left:3px solid var(--accent2); border-radius:6px; }
+.config-title { font-weight:600; font-size:14px; color:var(--text); margin-bottom:8px; }
+.config-value { font-size:13px; color:var(--text-dim); line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+.no-config { color:var(--text-dim); font-style:italic; font-size:13px; }
+.custom-table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:8px; }
+.custom-table th, .custom-table td { padding:8px 10px; border:1px solid var(--border); text-align:left; }
+.custom-table th { background:var(--surface2); color:var(--text-dim); font-weight:600; font-size:11px; text-transform:uppercase; }
+.custom-table code { font-family:"SFMono-Regular",Consolas,"JetBrains Mono",monospace; font-size:11px; color:var(--accent); word-break:break-all; }
+
+/* Footer */
+.page-footer { text-align:center; padding:24px; color:var(--text-dim); font-size:12px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; }
+.page-footer a { color:var(--accent); text-decoration:none; }
+.page-footer a:hover { text-decoration:underline; }
+.data-source-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:12px; font-size:11px; font-weight:600; border:1px solid var(--border); background:var(--surface); }
+.data-source-badge.live { border-color:var(--new); color:var(--new); }
+.data-source-badge.cached { border-color:var(--updated); color:var(--updated); }
+.refresh-btn { background:none; border:1px solid var(--border); border-radius:var(--radius); color:var(--text-dim); font-size:12px; font-family:inherit; cursor:pointer; padding:3px 10px; transition:all .15s; }
+.refresh-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+@media (max-width:600px) {
+  .header, .tabs, .filter-bar, .result-count-bar, .grid-container, .page-footer { padding-left:16px; padding-right:16px; }
+  .modal { padding:20px; }
+  .grid { grid-template-columns:1fr; }
+  .multiselect { min-width:120px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loadingMsg" class="loading-msg">Loading integrations…</div>
+  <div id="loadingProgress" class="loading-progress"></div>
+</div>
+
+<!-- Error banner -->
+<div id="errorBanner" class="error-banner"></div>
+
+<!-- Header (always visible) -->
+<div class="header">
+  <h1>Polarity Integrations</h1>
+  <div class="header-right">
+    <input class="search-box" type="search" id="searchBox"
+      placeholder="Search integrations…" oninput="applyFilters()" autocomplete="off">
+  </div>
+</div>
+
+<!-- Tabs (shown after load) -->
+<div class="tabs" id="tabs" style="display:none">
+  <button class="tab-btn active" id="tab-v1" onclick="switchTab('v1')">
+    v1 Integrations (3.x) <span class="tab-pill" id="pill-v1-count"></span>
+    <span class="tab-pill new" id="pill-v1-new" style="display:none"></span>
+    <span class="tab-pill updated" id="pill-v1-updated" style="display:none"></span>
+  </button>
+  <button class="tab-btn" id="tab-v2" onclick="switchTab('v2')">
+    v2 Integrations (4.x) <span class="tab-pill" id="pill-v2-count"></span>
+    <span class="tab-pill new" id="pill-v2-new" style="display:none"></span>
+    <span class="tab-pill updated" id="pill-v2-updated" style="display:none"></span>
+  </button>
+</div>
+
+<!-- Filter bar (shown after load) -->
+<div class="filter-bar" id="filterBar" style="display:none">
+  <div class="multiselect" id="ms-entity">
+    <div class="ms-trigger" onclick="toggleDropdown('ms-entity')">
+      <span class="ms-placeholder">Entity Type</span>
+      <span class="ms-arrow">▾</span>
+    </div>
+    <div class="ms-dropdown" id="ms-entity-opts"></div>
+  </div>
+  <div class="multiselect" id="ms-usecase">
+    <div class="ms-trigger" onclick="toggleDropdown('ms-usecase')">
+      <span class="ms-placeholder">Use Case</span>
+      <span class="ms-arrow">▾</span>
+    </div>
+    <div class="ms-dropdown" id="ms-usecase-opts"></div>
+  </div>
+  <div class="multiselect" id="ms-category">
+    <div class="ms-trigger" onclick="toggleDropdown('ms-category')">
+      <span class="ms-placeholder">Product Type</span>
+      <span class="ms-arrow">▾</span>
+    </div>
+    <div class="ms-dropdown" id="ms-category-opts"></div>
+  </div>
+  <button class="updated-toggle new-toggle" id="newToggle" onclick="toggleNewFilter()">✨ New</button>
+  <button class="updated-toggle" id="updatedToggle" onclick="toggleUpdatedFilter()">🔄 Recently Updated</button>
+  <button class="updated-toggle ondemand-toggle" id="ondemandToggle" onclick="toggleOnDemandFilter()">🔍 On-demand Only</button>
+  <button class="clear-filters" id="clearFilters" onclick="clearFilters()">✕ Clear all</button>
+</div>
+
+<div class="result-count-bar"><span id="resultCount"></span></div>
+
+<div class="grid-container">
+  <div class="grid" id="grid-v1"></div>
+  <div class="grid" id="grid-v2" style="display:none"></div>
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🔍</div>
+    <h3>No integrations match</h3>
+    <p>Try a different search term or adjust the filters.</p>
+  </div>
+</div>
+
+<!-- Footer (shown after load) -->
+<div class="page-footer" id="pageFooter" style="display:none">
+  <span id="dataSourceBadge" class="data-source-badge"></span>
+  <span id="footerTimestamp"></span>
+  <a href="https://github.com/polarityio/integration-catalog" target="_blank" rel="noopener noreferrer">GitHub</a>
+  <a href="https://polarity.io" target="_blank" rel="noopener noreferrer">polarity.io</a>
+  <button class="refresh-btn" onclick="reload()">↻ Refresh</button>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeModalOnBackdrop(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIGURATION ───────────────────────────────────────────────────────────
+const STRAPI_V1_BASE = 'https://integration-store.polarity.io';
+const STRAPI_V2_BASE = 'https://integration-store-v2.polarity.io';
+const PAGE_SIZE = 100;
+const BADGE_WINDOW_DAYS = 30;
+const V1_BULK_MIGRATION_DATES = new Set(['2026-02-27', '2026-05-15']);
+const V2_MIGRATION_CUTOFF = '2026-06-24';
+
+const BASE_ENTITY_MAP = [
+  ['domains','Domain'],['email','Email'],['ipv4','IPv4'],['ipv6','IPv6'],
+  ['url','URL'],['md5','MD5'],['sha1','SHA1'],['sha256','SHA256'],
+  ['cve','CVE'],['mac','MAC'],['geo','Geo'],['ipv4cidr','CIDR']
+];
+
+const ENTITY_COLORS = {
+  IPv4:'#2a7fc1',IPv6:'#2a7fc1',CIDR:'#2a7fc1',
+  Domain:'#1a6e8e',URL:'#1a6e8e',
+  Email:'#6a4fa3',MAC:'#6a4fa3',
+  MD5:'#7a5230',SHA1:'#7a5230',SHA256:'#7a5230',
+  CVE:'#8b2020',Geo:'#2a6e5e'
+};
+
+const ALL_ENTITY_TYPES = ['Domain','Email','IPv4','IPv6','URL','MD5','SHA1','SHA256','CVE','MAC','Geo','CIDR'];
+
+// ── STATE ───────────────────────────────────────────────────────────────────
+let v1Entries = [], v2Entries = [];
+const entryMap = {};
+let currentTab = 'v1';
+let activeEntities = new Set();
+let activeUseCases = new Set();
+let activeCategories = new Set();
+let onlyNew = false;
+let onlyUpdated = false;
+let onlyOnDemand = false;
+const openDropdowns = new Set();
+
+// ── HTML ESCAPING ───────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function truncateOverview(text) {
+  if (!text || text.length <= 157) return esc(text || '');
+  const cut = text.slice(0, 157).replace(/ \S+$/, '');
+  return esc(cut) + '…';
+}
+
+// ── API HELPERS ─────────────────────────────────────────────────────────────
+async function apiFetch(url) {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 30000);
+  try {
+    const resp = await fetch(url, { signal: controller.signal });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
+    return await resp.json();
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
+async function fetchAllPages(baseUrl, collection, extraParams, storeLabel, onProgress) {
+  const all = [];
+  let page = 1;
+  while (true) {
+    const params = new URLSearchParams({
+      'pagination[page]': page,
+      'pagination[pageSize]': PAGE_SIZE,
+      'publicationState': 'live',
+      ...extraParams
+    });
+    const data = await apiFetch(`${baseUrl}/api/${collection}?${params}`);
+    const batch = data.data || [];
+    if (!batch.length) break;
+    all.push(...batch);
+    const { pageCount = 1 } = (data.meta && data.meta.pagination) || {};
+    onProgress && onProgress(storeLabel, collection, page, pageCount);
+    if (page >= pageCount) break;
+    page++;
+  }
+  return all;
+}
+
+async function fetchRepos(baseUrl, storeLabel) {
+  const raw = await fetchAllPages(baseUrl, 'repos', {
+    'populate[0]': 'use_cases',
+    'populate[1]': 'product_categories'
+  }, storeLabel, null);
+  const lookup = {};
+  for (const e of raw) {
+    const attrs = e.attributes || e;
+    const uuid = (attrs.polarityIntegrationUuid || '').trim();
+    const name = (attrs.name || '').trim();
+    const useCases = (attrs.use_cases || []).map(uc => uc.useCase).filter(Boolean);
+    const categories = (attrs.product_categories || []).map(pc => pc.category).filter(Boolean);
+    const key = uuid || name.toLowerCase();
+    if (key) lookup[key] = {
+      useCases,
+      productCategories: categories,
+      repositoryUrl: attrs.repositoryUrl || '',
+      repoPublishedAt: attrs.publishedAt || ''
+    };
+  }
+  return lookup;
+}
+
+// ── DATA PROCESSING ─────────────────────────────────────────────────────────
+function buildRecentlyUpdatedSet(releases, storeLabel) {
+  const cutoff = new Date(Date.now() - BADGE_WINDOW_DAYS * 86400000);
+  const uuids = new Set();
+  for (const e of releases) {
+    const attrs = e.attributes || e;
+    const upd = attrs.updatedAt;
+    const uuid = (attrs.polarityIntegrationUuid || '').trim();
+    if (!upd || !uuid) continue;
+    const updDate = new Date(upd);
+    const updDateStr = updDate.toISOString().slice(0, 10);
+    if (updDate < cutoff) continue;
+    if (storeLabel === 'v1' && V1_BULK_MIGRATION_DATES.has(updDateStr)) continue;
+    if (storeLabel === 'v2' && updDateStr <= V2_MIGRATION_CUTOFF) continue;
+    uuids.add(uuid);
+  }
+  return uuids;
+}
+
+function normalizeEntry(entry, storeLabel, repoLookup, recentlyUpdatedUuids) {
+  const attrs = entry.attributes || entry;
+  const baseEntities = attrs.baseEntities || {};
+  const entityTypes = BASE_ENTITY_MAP.filter(([k]) => baseEntities[k]).map(([, label]) => label);
+  const customEntities = (attrs.customEntities || [])
+    .filter(e => e && typeof e === 'object')
+    .map(e => ({ name: e.name || '', regex: e.regex || '', onDemandOnly: !!e.onDemandOnly }));
+
+  const uuid = (attrs.polarityIntegrationUuid || '').trim();
+  const name = (attrs.name || '').trim();
+  const repoMeta = repoLookup[uuid] || repoLookup[name.toLowerCase()] || {};
+
+  // Badge logic (matches production store)
+  const cutoff = new Date(Date.now() - BADGE_WINDOW_DAYS * 86400000);
+  let isNew = false;
+  const pubStr = repoMeta.repoPublishedAt || '';
+  if (pubStr) {
+    const pubDate = new Date(pubStr);
+    const pubDateStr = pubDate.toISOString().slice(0, 10);
+    if (storeLabel === 'v1') {
+      isNew = pubDate >= cutoff && !V1_BULK_MIGRATION_DATES.has(pubDateStr);
+    } else {
+      isNew = pubDate >= cutoff && pubDateStr > V2_MIGRATION_CUTOFF;
+    }
+  }
+  const recentlyUpdated = !isNew && recentlyUpdatedUuids.has(uuid);
+  const onDemandOnly = !entityTypes.length && customEntities.length > 0 && customEntities.every(e => e.onDemandOnly);
+
+  return {
+    id: attrs.id || attrs.documentId,
+    documentId: String(attrs.documentId || attrs.id || ''),
+    name,
+    version: (attrs.version || '').trim(),
+    overview: (attrs.overview || '').trim(),
+    nodeVersion: (attrs.nodeVersion || '').trim(),
+    configurations: attrs.configurations || [],
+    entityTypes,
+    customEntities,
+    useCases: repoMeta.useCases || [],
+    productCategories: repoMeta.productCategories || [],
+    repoUrl: repoMeta.repositoryUrl || '',
+    repoPublishedAt: pubStr,
+    releaseUpdatedAt: attrs.updatedAt || '',
+    recentlyUpdated,
+    isNew,
+    onDemandOnly,
+    store: storeLabel
+  };
+}
+
+// ── LOADING ─────────────────────────────────────────────────────────────────
+let progressState = {};
+
+function onFetchProgress(storeLabel, collection, page, pageCount) {
+  progressState[`${storeLabel}-${collection}`] = { page, pageCount };
+  const parts = Object.entries(progressState).map(([k, v]) =>
+    `${k}: ${v.page}/${v.pageCount}`
+  );
+  document.getElementById('loadingProgress').textContent = parts.join(' · ');
+}
+
+async function loadFromApi(baseUrl, storeLabel) {
+  const [repoLookup, rawReleases] = await Promise.all([
+    fetchRepos(baseUrl, storeLabel),
+    fetchAllPages(baseUrl, 'repo-releases', {
+      'populate[0]': 'baseEntities',
+      'populate[1]': 'customEntities',
+      'populate[2]': 'configurations',
+    }, storeLabel, onFetchProgress)
+  ]);
+  const recentlyUpdatedUuids = buildRecentlyUpdatedSet(rawReleases, storeLabel);
+  return rawReleases
+    .map(e => normalizeEntry(e, storeLabel, repoLookup, recentlyUpdatedUuids))
+    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+}
+
+async function loadFromJson(storeLabel) {
+  const resp = await fetch(`./data/catalog-${storeLabel}.json`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  return data.entries || [];
+}
+
+async function loadStore(storeLabel) {
+  const baseUrl = storeLabel === 'v1' ? STRAPI_V1_BASE : STRAPI_V2_BASE;
+  try {
+    const entries = await loadFromApi(baseUrl, storeLabel);
+    return { entries, source: 'live' };
+  } catch (err) {
+    console.warn(`[${storeLabel}] API fetch failed (${err.message}), falling back to cached JSON`);
+  }
+  try {
+    const entries = await loadFromJson(storeLabel);
+    return { entries, source: 'cached' };
+  } catch (err) {
+    console.error(`[${storeLabel}] JSON fallback also failed:`, err);
+    return { entries: [], source: 'error' };
+  }
+}
+
+// ── CARD / MODAL BUILDERS ───────────────────────────────────────────────────
+function buildEntityBadges(entityTypes, size) {
+  const cls = size === 'large' ? 'badges large' : 'badges';
+  const html = entityTypes.map(et =>
+    `<span class="badge" style="background:${ENTITY_COLORS[et]||'#666'}">${esc(et)}</span>`
+  ).join('');
+  return html;
+}
+
+function buildCard(entry) {
+  const entityBadges = buildEntityBadges(entry.entityTypes);
+  const customBadge = entry.customEntities.length
+    ? `<span class="badge badge-custom">+${entry.customEntities.length} custom</span>` : '';
+  const allBadges = (entityBadges + customBadge) ||
+    '<span class="badge badge-none">No entity types</span>';
+
+  const statusBadges = [
+    entry.isNew ? '<span class="badge-new">✨ New</span>' : '',
+    entry.recentlyUpdated ? '<span class="badge-updated">🔄 Updated</span>' : ''
+  ].join('');
+
+  const cfgCount = entry.configurations.length;
+  const cfgLabel = cfgCount
+    ? `${cfgCount} config option${cfgCount !== 1 ? 's' : ''}` : 'No config options';
+
+  const cardClass = ['card',
+    entry.isNew ? 'is-new' : '',
+    entry.recentlyUpdated ? 'recently-updated' : ''
+  ].filter(Boolean).join(' ');
+
+  return `<div class="${cardClass}"
+    data-docid="${esc(entry.documentId)}" data-store="${esc(entry.store)}"
+    data-name="${esc(entry.name.toLowerCase())}"
+    data-entities="${esc(JSON.stringify(entry.entityTypes))}"
+    data-usecases="${esc(JSON.stringify(entry.useCases))}"
+    data-categories="${esc(JSON.stringify(entry.productCategories))}"
+    data-isnew="${entry.isNew}" data-updated="${entry.recentlyUpdated}"
+    data-ondemand="${entry.onDemandOnly}"
+    onclick="openModal(this)">
+    <div class="card-header">
+      <span class="card-name">${esc(entry.name)}</span>
+      <div class="card-header-right">${statusBadges}</div>
+    </div>
+    <div class="card-desc">${truncateOverview(entry.overview)}</div>
+    <div class="card-footer">
+      <div class="badges">${allBadges}</div>
+      <span class="cfg-count">${cfgLabel}</span>
+    </div>
+  </div>`;
+}
+
+function buildModalContent(entry) {
+  const entityBadges = buildEntityBadges(entry.entityTypes, 'large') ||
+    '<span class="badge badge-none">None documented</span>';
+
+  // Config section
+  let configSection;
+  if (entry.configurations.length) {
+    configSection = '<h3 class="section-label">Configuration Options</h3>' +
+      entry.configurations.map(cfg => {
+        const valueHtml = esc(cfg.value || '').replace(/&#10;/g,'<br>').replace(/&#13;/g,'');
+        return `<div class="config-item">
+          <div class="config-title">${esc(cfg.title || '')}</div>
+          <div class="config-value">${valueHtml}</div>
+        </div>`;
+      }).join('');
+  } else {
+    configSection = '<p class="no-config">No configuration options documented.</p>';
+  }
+
+  // Custom entities table
+  let customSection = '';
+  if (entry.customEntities.length) {
+    const rows = entry.customEntities.map(ce =>
+      `<tr><td>${esc(ce.name)}</td><td><code>${esc(ce.regex)}</code></td>
+       <td>${ce.onDemandOnly ? 'Yes' : 'No'}</td></tr>`
+    ).join('');
+    customSection = `<div class="modal-custom">
+      <h3 class="section-label">Custom Entity Types</h3>
+      <table class="custom-table">
+        <thead><tr><th>Name</th><th>Regex</th><th>On-demand Only</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+  }
+
+  // Meta tags
+  const nodeInfo = entry.nodeVersion
+    ? `<span class="meta-tag">Node ${esc(entry.nodeVersion)}</span>` : '';
+  const statusTags = [
+    entry.isNew ? '<span class="meta-tag meta-new">✨ New Integration</span>' : '',
+    entry.recentlyUpdated ? '<span class="meta-tag meta-updated">🔄 Recently Updated</span>' : '',
+    entry.onDemandOnly ? '<span class="meta-tag meta-ondemand">🔍 On-demand Only</span>' : ''
+  ].join('');
+
+  let updatedDisplay = '';
+  if (entry.releaseUpdatedAt && entry.recentlyUpdated) {
+    try {
+      const dt = new Date(entry.releaseUpdatedAt);
+      updatedDisplay = `<span class="meta-tag meta-date">Updated ${dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>`;
+    } catch(e) {}
+  }
+
+  const ucTags = entry.useCases.map(uc => `<span class="meta-tag meta-uc">${esc(uc)}</span>`).join('');
+  const catTags = entry.productCategories.map(c => `<span class="meta-tag meta-cat">${esc(c)}</span>`).join('');
+  const repoLink = entry.repoUrl
+    ? `<a href="${esc(entry.repoUrl)}" target="_blank" rel="noopener" class="github-link">GitHub ↗</a>` : '';
+
+  return `<div class="modal-header">
+    <div>
+      <h2>${esc(entry.name)}</h2>
+      <div class="modal-meta">
+        <span class="meta-tag">v${esc(entry.version)}</span>
+        ${nodeInfo}${statusTags}${updatedDisplay}${repoLink}
+      </div>
+      <div class="modal-meta">${ucTags}${catTags}</div>
+    </div>
+  </div>
+  <div class="modal-overview">${esc(entry.overview)}</div>
+  <div class="modal-entities">
+    <h3 class="section-label">Supported Entity Types</h3>
+    <div class="badges large">${entityBadges}</div>
+  </div>
+  ${customSection}
+  <div class="modal-configs">${configSection}</div>`;
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+function renderGrid(entries, gridId) {
+  document.getElementById(gridId).innerHTML = entries.map(buildCard).join('\n');
+}
+
+function updateTabPills() {
+  const updatePills = (label, entries) => {
+    const newCount = entries.filter(e => e.isNew).length;
+    const updCount = entries.filter(e => e.recentlyUpdated).length;
+    document.getElementById(`pill-${label}-count`).textContent = entries.length;
+    const newPill = document.getElementById(`pill-${label}-new`);
+    const updPill = document.getElementById(`pill-${label}-updated`);
+    if (newCount) { newPill.textContent = `${newCount} new`; newPill.style.display = ''; }
+    if (updCount) { updPill.textContent = `${updCount} updated`; updPill.style.display = ''; }
+  };
+  updatePills('v1', v1Entries);
+  updatePills('v2', v2Entries);
+}
+
+function collectOptions(entries, field) {
+  const counts = {};
+  for (const e of entries) {
+    for (const v of (e[field] || [])) {
+      const s = v.trim();
+      if (s) counts[s] = (counts[s] || 0) + 1;
+    }
+  }
+  return Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+}
+
+function populateMultiselect(containerId, options) {
+  document.getElementById(containerId).innerHTML = options.map(o =>
+    `<div class="ms-option" data-value="${esc(o)}" onclick="toggleOption(this)">${esc(o)}</div>`
+  ).join('\n');
+}
+
+function initFilterBar() {
+  const all = [...v1Entries, ...v2Entries];
+  // Entity types (fixed list)
+  populateMultiselect('ms-entity-opts', ALL_ENTITY_TYPES);
+  // Dynamic options from data
+  populateMultiselect('ms-usecase-opts', collectOptions(all, 'useCases'));
+  populateMultiselect('ms-category-opts', collectOptions(all, 'productCategories'));
+
+  // Store placeholder text for reset
+  document.querySelectorAll('.ms-trigger').forEach(t => {
+    t.dataset.placeholder = t.querySelector('.ms-placeholder').textContent;
+  });
+}
+
+// ── DROPDOWN MANAGEMENT ──────────────────────────────────────────────────────
+function toggleDropdown(id) {
+  const el = document.getElementById(id);
+  if (el.classList.contains('open')) {
+    el.classList.remove('open');
+    openDropdowns.delete(id);
+  } else {
+    openDropdowns.forEach(otherId => document.getElementById(otherId)?.classList.remove('open'));
+    openDropdowns.clear();
+    el.classList.add('open');
+    openDropdowns.add(id);
+  }
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.multiselect')) {
+    openDropdowns.forEach(id => document.getElementById(id)?.classList.remove('open'));
+    openDropdowns.clear();
+  }
+});
+
+function toggleOption(optEl) {
+  const ms = optEl.closest('.multiselect');
+  const id = ms.id;
+  const val = optEl.dataset.value;
+  optEl.classList.toggle('selected');
+
+  let activeSet;
+  if (id === 'ms-entity') activeSet = activeEntities;
+  else if (id === 'ms-usecase') activeSet = activeUseCases;
+  else if (id === 'ms-category') activeSet = activeCategories;
+  else return;
+
+  if (optEl.classList.contains('selected')) activeSet.add(val);
+  else activeSet.delete(val);
+
+  const trigger = ms.querySelector('.ms-trigger');
+  const placeholder = ms.querySelector('.ms-placeholder');
+  const selected = [...ms.querySelectorAll('.ms-option.selected')].map(o => o.dataset.value);
+  if (selected.length === 0) {
+    placeholder.textContent = trigger.dataset.placeholder;
+    trigger.classList.remove('has-selection');
+  } else if (selected.length === 1) {
+    placeholder.textContent = selected[0];
+    trigger.classList.add('has-selection');
+  } else {
+    placeholder.textContent = `${selected.length} selected`;
+    trigger.classList.add('has-selection');
+  }
+  updateClearBtn();
+  applyFilters();
+}
+
+// ── TAB ──────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('grid-v1').style.display = tab === 'v1' ? '' : 'none';
+  document.getElementById('grid-v2').style.display = tab === 'v2' ? '' : 'none';
+  document.getElementById('tab-v1').classList.toggle('active', tab === 'v1');
+  document.getElementById('tab-v2').classList.toggle('active', tab === 'v2');
+  applyFilters();
+}
+
+// ── FILTER TOGGLES ───────────────────────────────────────────────────────────
+function toggleNewFilter() {
+  onlyNew = !onlyNew;
+  document.getElementById('newToggle').classList.toggle('active', onlyNew);
+  updateClearBtn(); applyFilters();
+}
+
+function toggleUpdatedFilter() {
+  onlyUpdated = !onlyUpdated;
+  document.getElementById('updatedToggle').classList.toggle('active', onlyUpdated);
+  updateClearBtn(); applyFilters();
+}
+
+function toggleOnDemandFilter() {
+  onlyOnDemand = !onlyOnDemand;
+  document.getElementById('ondemandToggle').classList.toggle('active', onlyOnDemand);
+  updateClearBtn(); applyFilters();
+}
+
+function updateClearBtn() {
+  const hasAny = activeEntities.size || activeUseCases.size || activeCategories.size
+    || onlyNew || onlyUpdated || onlyOnDemand
+    || document.getElementById('searchBox').value.trim();
+  document.getElementById('clearFilters').classList.toggle('visible', !!hasAny);
+}
+
+function clearFilters() {
+  activeEntities.clear(); activeUseCases.clear(); activeCategories.clear();
+  onlyNew = false; onlyUpdated = false; onlyOnDemand = false;
+  document.getElementById('newToggle').classList.remove('active');
+  document.getElementById('updatedToggle').classList.remove('active');
+  document.getElementById('ondemandToggle').classList.remove('active');
+  document.getElementById('searchBox').value = '';
+  document.querySelectorAll('.ms-option.selected').forEach(o => o.classList.remove('selected'));
+  document.querySelectorAll('.ms-trigger').forEach(t => {
+    t.querySelector('.ms-placeholder').textContent = t.dataset.placeholder;
+    t.classList.remove('has-selection');
+  });
+  updateClearBtn(); applyFilters();
+}
+
+// ── FILTER / SEARCH ──────────────────────────────────────────────────────────
+function applyFilters() {
+  const q = document.getElementById('searchBox').value.toLowerCase().trim();
+  const grid = document.getElementById('grid-' + currentTab);
+  if (!grid) return;
+  const cards = Array.from(grid.querySelectorAll('.card'));
+  let visible = 0;
+
+  cards.forEach(card => {
+    const name = card.dataset.name || '';
+    const entities = JSON.parse(card.dataset.entities || '[]');
+    const useCases = JSON.parse(card.dataset.usecases || '[]');
+    const cats = JSON.parse(card.dataset.categories || '[]');
+    const desc = card.querySelector('.card-desc')?.textContent.toLowerCase() || '';
+    const isNew = card.dataset.isnew === 'true';
+    const isUpdated = card.dataset.updated === 'true';
+    const isOnDemand = card.dataset.ondemand === 'true';
+
+    const ok = (!q || name.includes(q) || desc.includes(q))
+      && (activeEntities.size === 0 || [...activeEntities].every(e => entities.includes(e)))
+      && (activeUseCases.size === 0 || [...activeUseCases].some(u => useCases.includes(u)))
+      && (activeCategories.size === 0 || [...activeCategories].some(c => cats.includes(c)))
+      && (!onlyNew || isNew)
+      && (!onlyUpdated || isUpdated)
+      && (!onlyOnDemand || isOnDemand);
+
+    card.classList.toggle('hidden', !ok);
+    if (ok) visible++;
+  });
+
+  const total = cards.length;
+  document.getElementById('resultCount').textContent =
+    visible === total ? `${total} integrations` : `${visible} of ${total} integrations`;
+  document.getElementById('emptyState').classList.toggle('visible', visible === 0);
+  updateClearBtn();
+}
+
+// ── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(card) {
+  const key = `${card.dataset.store}:${card.dataset.docid}`;
+  const entry = entryMap[key];
+  if (!entry) return;
+  document.getElementById('modalContent').innerHTML = buildModalContent(entry);
+  document.getElementById('modalBackdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modalBackdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function closeModalOnBackdrop(e) {
+  if (e.target === document.getElementById('modalBackdrop')) closeModal();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ── INIT / RELOAD ────────────────────────────────────────────────────────────
+function setLoading(on, msg) {
+  const overlay = document.getElementById('loadingOverlay');
+  if (on) {
+    document.getElementById('loadingMsg').textContent = msg || 'Loading…';
+    document.getElementById('loadingProgress').textContent = '';
+    overlay.classList.remove('hidden');
+  } else {
+    overlay.classList.add('hidden');
+  }
+}
+
+async function init() {
+  // Reset state on reload
+  v1Entries = []; v2Entries = [];
+  Object.keys(entryMap).forEach(k => delete entryMap[k]);
+  progressState = {};
+  activeEntities.clear(); activeUseCases.clear(); activeCategories.clear();
+  onlyNew = false; onlyUpdated = false; onlyOnDemand = false;
+
+  document.getElementById('tabs').style.display = 'none';
+  document.getElementById('filterBar').style.display = 'none';
+  document.getElementById('pageFooter').style.display = 'none';
+  document.getElementById('errorBanner').classList.remove('visible');
+  setLoading(true, 'Loading integrations…');
+
+  const [r1, r2] = await Promise.all([loadStore('v1'), loadStore('v2')]);
+
+  v1Entries = r1.entries;
+  v2Entries = r2.entries;
+
+  for (const e of [...v1Entries, ...v2Entries]) {
+    entryMap[`${e.store}:${e.documentId}`] = e;
+  }
+
+  if (!v1Entries.length && !v2Entries.length) {
+    const err = document.getElementById('errorBanner');
+    err.textContent = 'Could not load integration data. Check your connection and try refreshing.';
+    err.classList.add('visible');
+    setLoading(false);
+    return;
+  }
+
+  renderGrid(v1Entries, 'grid-v1');
+  renderGrid(v2Entries, 'grid-v2');
+  updateTabPills();
+  initFilterBar();
+
+  document.getElementById('tabs').style.display = '';
+  document.getElementById('filterBar').style.display = '';
+
+  // Footer
+  const sources = new Set([r1.source, r2.source]);
+  const isLive = sources.has('live');
+  const badge = document.getElementById('dataSourceBadge');
+  badge.textContent = isLive ? '🟢 Live data' : '📦 Cached data';
+  badge.className = `data-source-badge ${isLive ? 'live' : 'cached'}`;
+  document.getElementById('footerTimestamp').textContent =
+    `Last loaded ${new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}`;
+  document.getElementById('pageFooter').style.display = '';
+
+  setLoading(false);
+  applyFilters();
+}
+
+function reload() { init(); }
+
+init();
+</script>
+</body>
+</html>
