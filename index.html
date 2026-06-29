@@ -457,8 +457,31 @@ async function loadFromApi(baseUrl, storeLabel) {
       'populate[2]': 'configurations',
     }, storeLabel, onFetchProgress)
   ]);
-  const recentlyUpdatedUuids = buildRecentlyUpdatedSet(rawReleases, storeLabel);
-  return rawReleases
+  // Deduplicate by UUID — keep lowest id (original); skip entries with version-like names (corrupted data)
+  const VERSION_LIKE = /^\d+\.\d+/;
+  const seenUuid = new Map();
+  const deduped = [];
+  for (const e of rawReleases) {
+    const attrs = e.attributes || e;
+    const name = (attrs.name || '').trim();
+    if (VERSION_LIKE.test(name)) continue; // skip corrupted entries like name="3.2.1"
+    const uuid = (attrs.polarityIntegrationUuid || '').trim();
+    const id = Number(e.id) || 0;
+    if (uuid) {
+      if (seenUuid.has(uuid)) {
+        if (id < seenUuid.get(uuid).id) {
+          const idx = deduped.indexOf(seenUuid.get(uuid).entry);
+          deduped[idx] = e;
+          seenUuid.set(uuid, { id, entry: e });
+        }
+        continue;
+      }
+      seenUuid.set(uuid, { id, entry: e });
+    }
+    deduped.push(e);
+  }
+  const recentlyUpdatedUuids = buildRecentlyUpdatedSet(deduped, storeLabel);
+  return deduped
     .map(e => normalizeEntry(e, storeLabel, repoLookup, recentlyUpdatedUuids))
     .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 }
