@@ -419,7 +419,7 @@ function normalizeEntry(entry, storeLabel, repoLookup, recentlyUpdatedUuids) {
     id: attrs.id || attrs.documentId,
     documentId: String(attrs.documentId || attrs.id || ''),
     name,
-    version: storeLabel === 'v1' ? '' : (attrs.version || '').trim(),
+    version: (attrs.version || '').trim(),
     overview: (attrs.overview || '').trim(),
     nodeVersion: (attrs.nodeVersion || '').trim(),
     configurations: attrs.configurations || [],
@@ -614,10 +614,10 @@ function buildModalContent(entry) {
 
   const ucTags = entry.useCases.map(uc => `<span class="meta-tag meta-uc">${esc(uc)}</span>`).join('');
   const catTags = entry.productCategories.map(c => `<span class="meta-tag meta-cat">${esc(c)}</span>`).join('');
-  // v1 repos are internal — never show GitHub link or Polarity platform version for v1 entries
+  // v1 repos are internal — never show GitHub link for v1 entries
   const repoLink = entry.repoUrl && entry.store !== 'v1'
     ? `<a href="${esc(entry.repoUrl)}" target="_blank" rel="noopener" class="github-link">GitHub ↗</a>` : '';
-  const versionTag = entry.version && entry.store !== 'v1'
+  const versionTag = entry.version
     ? `<span class="meta-tag">v${esc(entry.version)}</span>` : '';
 
   return `<div class="modal-header">
