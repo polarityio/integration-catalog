@@ -419,7 +419,7 @@ function normalizeEntry(entry, storeLabel, repoLookup, recentlyUpdatedUuids) {
     id: attrs.id || attrs.documentId,
     documentId: String(attrs.documentId || attrs.id || ''),
     name,
-    version: (attrs.version || '').trim(),
+    version: storeLabel === 'v1' ? '' : (attrs.version || '').trim(),
     overview: (attrs.overview || '').trim(),
     nodeVersion: (attrs.nodeVersion || '').trim(),
     configurations: attrs.configurations || [],
@@ -427,7 +427,7 @@ function normalizeEntry(entry, storeLabel, repoLookup, recentlyUpdatedUuids) {
     customEntities,
     useCases: repoMeta.useCases || [],
     productCategories: repoMeta.productCategories || [],
-    repoUrl: repoMeta.repositoryUrl || '',
+    repoUrl: storeLabel === 'v1' ? '' : (repoMeta.repositoryUrl || ''),
     repoPublishedAt: pubStr,
     releaseUpdatedAt: attrs.updatedAt || '',
     recentlyUpdated,
@@ -591,14 +591,17 @@ function buildModalContent(entry) {
 
   const ucTags = entry.useCases.map(uc => `<span class="meta-tag meta-uc">${esc(uc)}</span>`).join('');
   const catTags = entry.productCategories.map(c => `<span class="meta-tag meta-cat">${esc(c)}</span>`).join('');
-  const repoLink = entry.repoUrl
+  // v1 repos are internal — never show GitHub link or Polarity platform version for v1 entries
+  const repoLink = entry.repoUrl && entry.store !== 'v1'
     ? `<a href="${esc(entry.repoUrl)}" target="_blank" rel="noopener" class="github-link">GitHub ↗</a>` : '';
+  const versionTag = entry.version && entry.store !== 'v1'
+    ? `<span class="meta-tag">v${esc(entry.version)}</span>` : '';
 
   return `<div class="modal-header">
     <div>
       <h2>${esc(entry.name)}</h2>
       <div class="modal-meta">
-        <span class="meta-tag">v${esc(entry.version)}</span>
+        ${versionTag}
         ${nodeInfo}${statusTags}${updatedDisplay}${repoLink}
       </div>
       <div class="modal-meta">${ucTags}${catTags}</div>
